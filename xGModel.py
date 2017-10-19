@@ -9,7 +9,10 @@ Created on Sat Aug  5 15:47:47 2017
 import numpy as np 
 import math as m
 import pandas as pd
-from scipy.optimize import curve_fit
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 from matplotlib  import cm
 
@@ -408,9 +411,9 @@ def calc_xG(df):
     plt.colorbar()
 
     
-    df['raw_xG'] = df.apply(lambda row: get_bin_value(row, Hdiv, x_edges, y_edges), axis = 1)
+    df['xG'] = df.apply(lambda row: get_bin_value(row, Hdiv, x_edges, y_edges), axis = 1)
     
-    return df['raw_xG']
+    return df['xG']
 
 
 
@@ -436,9 +439,7 @@ def get_bin_value(row, Hdiv, x_edges, y_edges):
 
 
 
-
-
-
+###############################################################################
 ###############################################################################
 
 # Importing consolidated file and standardizing format
@@ -452,7 +453,36 @@ df = get_dist_ang(df)
 
 dfshot = shotfilter('shot', df)
 
-dfshot['raw_xG'] = calc_xG(dfshot)
+dfshot['xG'] = calc_xG(dfshot)
+
+
+features = ['Distance', 'Angle']
+target = ['xG']
+
+
+X = dfshot[features]
+y = dfshot[target]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 )
+
+regressor = LinearRegression()
+regressor.fit(X_train, y_train)
+
+y_prediction = regressor.predict(X_test)
+
+
+RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = y_prediction))
+
+
+
+
+
+
+
+
+
+
 
 
 

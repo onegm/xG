@@ -328,99 +328,6 @@ def shotfilter(shot_type, df ):
 
     return df
 
-        
-
-
-
-
-
-
-
-
-def binh(y, bin_width):
-    # Assign shot to horizontal bin
-    hbin = y//bin_width
-    
-    if y == 80:
-        hbin = 80//bin_width - 1
-    
-    return int(hbin)
-
-def binv(x, bin_width):
-    # Assign shot to vertical bin
-    vbin = x//bin_width
-    
-    if x == 120:
-        vbin = 120//bin_width - 1
-        
-    return int(vbin)
-
-
-
-def binshots(df, bin_width = 5):
-    # Assign shots to bins
-    
-    df['HBin'] = df['Y'].apply(lambda y: binh(y, bin_width))
-    df['VBin'] = df['X'].apply(lambda x: binv(x, bin_width))
-    
-    return df
-
-    
-
-def isGoal(result):
-    
-    if result == 'goal':
-        return 1
-    
-    else:
-        return 0
-
-
-
-
-
-
-
-
-
-def probshots(df, bin_width = 5, shot_type = None):
-    # Turn df of shots into bins each with probability of scoring    
-    
-    if shot_type != None:
-        df = shotfilter(shot_type, df)
-
-    
-    shots = np.zeros((80//bin_width, 120//bin_width))
-    goals = np.zeros((80//bin_width, 120//bin_width))
-    
-    
-    for i, row in df.iterrows(): 
-        hbin = int(row['HBin'])
-        vbin = int(row['VBin'])
-
-        shots[hbin, vbin] += 1
-        
-        if row['Result'] == 'goal':
-            goals[hbin, vbin] += 1
-    
-    np.seterr(divide = 'ignore')
-    prob = np.divide(goals, shots)
-    prob = np.nan_to_num(prob)
-    
-    for i in range(80//bin_width):
-        for j in range(120//bin_width):
-            if shots[i, j] <= 10:
-                prob[i,j] = 0
-    
-    
-    df['xG'] = df.apply(lambda row: prob[row['HBin'], row['VBin']], axis = 1)
-    df['isGoal'] = df['Result'].apply(lambda result: isGoal(result))
-    df = get_dist_ang(df)
-
-    
-    return df, prob
-
-
 
 
 
@@ -613,64 +520,13 @@ filename = '/Users/onegm/Desktop/Arqam/Consolidation/Consolidated Shots Full 14.
 
 df = standarddf(filename)
 
-# Scatter plot of all shots
-#scatplot(df.X, df.Y, title = '2014-2017 shots')
-
-# Assign shots into bins of determined width
-binwidth = 5
-df = binshots(df, binwidth)
-
-
-
-
 # Probability matrix of each bin for each shot type
+df['isGoal'] = (df['Result'] == 'goal') * 1
+df = get_dist_ang(df)
 
-dfshot, shotprob = probshots(df, binwidth, 'shot')
+dfshot = shotfilter('shot', df)
 
 dfshot['raw_xG'] = calc_xG(dfshot)
-#dfhead, headprob = probshots(df, binwidth, 'head')
-#dffree, freeprob = probshots(df, binwidth, 'free kick')
-#dfpenalty, penaltyprob = probshots(df, binwidth, 'penalty')
-
-
-# Color map of probabilities    
-colormap(shotprob, 'Shot xG'.title())
-
-
-
-
-    
-#scatplot(df.X, df.Y, title = '2014-2017 shots', color = df.xG, colmap = True )
-
-
-
-
-#shotparam, shotrmse = curvefit(expdecay, dfshot.Distance, dfshot.xG, [ 1.4, 0.8])
-#param, rmse = curvefit(expdecay, (df.Distance, df.Angle), df.xG, [ 1.4,   0.8, 0.1])
-#headparam, headrmse = curvefit(expdecay, dfhead.Distance, dfhead.xG, [ 1.4, 0.8])
-
-
-
-#x = np.linspace(0, 120, 500)
-#plt.scatter(x, expdecay(x, shotparam[0], shotparam[1]), s = 1, c = 'b')
-##plt.scatter(x, expdecay(x, param[0], param[1], param[2]), s = 1, c = 'b')
-#plt.scatter(x, expdecay(x, headparam[0], headparam[1]), s = 1, c = 'g')
-#
-#
-#plt.ylabel('xG')
-#
-#plt.scatter(dfshot.Distance, dfshot.xG, s = 1, c = 'grey', alpha = 0.02)
-#plt.scatter(dfhead.Distance, dfhead.xG, s = 1, c = 'yellow', alpha = 0.02)
-
-
-
-
-
-# Least squares fit for exp decay model with non adjusted distance
-# Least squares fit for exp decay model with distance adjusted for angle
-# Calculate adj distances for each shot
-# Find 
-
 
 
 

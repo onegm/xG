@@ -362,11 +362,6 @@ def colormap(prob, title = ''):
 
 
 
-
-
-
-
-
 def scatplot(x, y, title = '', color = 'b', colmap = False):
     # scatter plot
     fig = plt.figure()
@@ -380,75 +375,6 @@ def scatplot(x, y, title = '', color = 'b', colmap = False):
     plt.show()
 
 
-
-
-
-
-
-
-
-
-
-
-
-def expdecay(x, a, b, k = None):
-    if len(x) > 2:
-        return a*np.exp(-b*x)
-    
-    else:
-        return a*np.exp(-b*x[0]/(x[1]**k))
-    
-    
-
-
-
-
-def curvefit(func, X, Y, initial_p):
-    
-    
-    param, pcov = curve_fit(func, X, Y, initial_p)        
-    
-    if len(X) > 2:
-        rmse = m.sqrt(sum((Y - func(X, param[0], param[1]))**2)/len(X))
-        
-    else:
-        rmse = m.sqrt(sum((Y - func(X, param[0], param[1], param[2]))**2)/len(X))
-    
-    return param, rmse
-
-
-
-
-
-
-
-
-
-def adjdist(dist, angle):   
-    # Distance adjusted to angle (not used)
-    o = 0.896899
-    adjdist = dist/(angle**o)
-    
-        
-    return adjdist
-
-
-
-
-
-    
-
-
-
-
-
-def plotmodel(adjdists, prediction, truearray, r):
-
-    scatplot(adjdists, prediction, title = str(r) + ' yards')
-        
-    rmse = m.sqrt(sum((truearray - prediction)**2)/len(truearray))
-    
-    print(rmse)
     
     
 

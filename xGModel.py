@@ -11,6 +11,7 @@ import math as m
 import pandas as pd
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
@@ -466,12 +467,18 @@ y = dfshot[target]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 )
 
+
+# Linear Regression
 regressor = LinearRegression()
 regressor.fit(X_train, y_train)
 
+
+## Support Vector Regression
+#regressor = SVR(kernel = 'rbf')
+#regressor.fit(X_train, y_train)
+
+
 y_prediction = regressor.predict(X_test)
-
-
 RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = y_prediction))
 
 

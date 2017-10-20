@@ -9,6 +9,7 @@ Created on Sat Aug  5 15:47:47 2017
 import numpy as np 
 import math as m
 import pandas as pd
+import random
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
@@ -372,9 +373,14 @@ def scatplot(x, y, title = '', color = 'b', colmap = False):
     ax1 = fig.add_subplot(111)
     
     if colmap:
-        ax1.scatter(x, y, c = color, marker = 'o', s = 5, cmap = cm.YlOrRd)
+        sc = plt.scatter(x, y, c = color, marker = 'o', s = 5, cmap = 'jet')
+        plt.colorbar(sc, orientation = 'vertical')
     else:
         ax1.scatter(x, y, c = color, marker = 'o', s = 5, alpha = 0.75)
+        
+    plt.xlim(0, 120)
+    plt.ylim(0, 80)
+    plt.grid()
     plt.title(title)
     plt.show()
 
@@ -404,12 +410,12 @@ def calc_xG(df):
     Hdiv = np.divide(Hgoal, H)
     Hdiv[~np.isfinite(Hdiv)] = 0
     
-    X, Y = np.meshgrid(x_edges, y_edges)
-    
-    fig = plt.figure(figsize=(10, 6))
-    plt.subplot()
-    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
-    plt.colorbar()
+#    X, Y = np.meshgrid(x_edges, y_edges)
+#    
+#    fig = plt.figure(figsize=(10, 6))
+#    plt.subplot()
+#    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
+#    plt.colorbar()
 
     
     df['xG'] = df.apply(lambda row: get_bin_value(row, Hdiv, x_edges, y_edges), axis = 1)
@@ -473,7 +479,7 @@ regressor = LinearRegression()
 regressor.fit(X_train, y_train)
 
 
-## Support Vector Regression
+# Support Vector Regression
 #regressor = SVR(kernel = 'rbf')
 #regressor.fit(X_train, y_train)
 
@@ -482,12 +488,21 @@ y_prediction = regressor.predict(X_test)
 RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = y_prediction))
 
 
+xrange = np.linspace(0, 120, 10**6)
+yrange = np.linspace(0,  80, 10**6)
+
+rand_x = pd.Series(random.sample(set(xrange), 10**6), name = 'X')
+rand_y = pd.Series(random.sample(set(yrange), 10**6), name = 'Y')
+
+rand_df = pd.concat([rand_x, rand_y], axis = 1)
+
+rand_df = get_dist_ang(rand_df)
 
 
+rand_df['xG'] = regressor.predict(rand_df[['Distance', 'Angle']]).clip(lower = 0)
 
 
-
-
+scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
 
 
 

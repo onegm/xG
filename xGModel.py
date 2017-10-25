@@ -485,45 +485,31 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 )
 
 
 print('Fitting')
-# Linear Regression
-linear = LinearRegression()
-linear.fit(X_train, y_train)
 
 
 # Logistic Regression
-logistic = LogisticRegression()
-logistic.fit(X_train, y_train)
-
-
-# Support Vector Regression
-svr = SVR(kernel = 'rbf')
-svr.fit(X_train, y_train)
-
+log = LogisticRegression()
+log.fit(X_train, y_train)
 
 
 
 print('Predicting')
 # Prediction
-linear_prediction = linear.predict(X_test)
-svr_prediction = svr.predict(X_test)
-logistic_prediction = logistic.predict_proba(X_test)[:, 1]
+log_prediction = log.predict_proba(X_test)[:, 1]
 exp_prediction = X_test.apply(lambda row: exp_xG(row), axis = 1)
 
 # RMSE
-linear_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = linear_prediction.clip(min = 0, max = 1)))
-svr_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = svr_prediction.clip(min = 0, max = 1)))
-logistic_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = logistic_prediction.clip(min = 0, max = 1)))
+log_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = log_prediction.clip(min = 0, max = 1)))
 exp_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = exp_prediction))
 
 print('RMSE Values:')
-print('Linear: ' + str(linear_RMSE))
-print('SVR: ' + str(svr_RMSE))
-print('Logistic: ' + str(logistic_RMSE))
+print('Logistic: ' + str(log_RMSE))
 print('Exponential: ' + str(exp_RMSE))
 
 
 # ROC
-fpr, tpr, thresh = roc_curve(y_test, logistic_prediction)
+log_fpr, log_tpr, log_thresh = roc_curve(y_test, log_prediction)
+exp_fpr, exp_tpr, exp_thresh = roc_curve(y_test, exp_prediction)
 
 
 
@@ -541,17 +527,13 @@ rand_df = get_dist_ang(rand_df)
 
 print('Predicting on random points')
 # Predict on random points
-rand_df['linear_xG'] = linear.predict(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)
-rand_df['svr_xG'] = svr.predict(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)
-rand_df['logistic_xG'] = logistic.predict_proba(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)[:, 1]
+rand_df['log_xG'] = log.predict_proba(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)[:, 1]
 rand_df['exp_xG'] = rand_df.apply(lambda row: exp_xG(row), axis = 1)
 
 
 print('Plotting')
 # Visualize models on pitch
-scatplot(rand_df.X, rand_df.Y, title = 'Linear', color = rand_df.linear_xG, colmap = True)
-scatplot(rand_df.X, rand_df.Y, title = 'SVR', color = rand_df.svr_xG, colmap = True)
-scatplot(rand_df.X, rand_df.Y, title = 'Logistic', color = rand_df.logistic_xG, colmap = True)
+scatplot(rand_df.X, rand_df.Y, title = 'Logistic', color = rand_df.log_xG, colmap = True)
 scatplot(rand_df.X, rand_df.Y, title = 'Exponential', color = rand_df.exp_xG, colmap = True)
 
 

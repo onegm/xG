@@ -410,12 +410,12 @@ def calc_xG(df):
     Hdiv = np.divide(Hgoal, H)
     Hdiv[~np.isfinite(Hdiv)] = 0
     
-#    X, Y = np.meshgrid(x_edges, y_edges)
-#    
-#    fig = plt.figure(figsize=(10, 6))
-#    plt.subplot()
-#    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
-#    plt.colorbar()
+    X, Y = np.meshgrid(x_edges, y_edges)
+    
+    fig = plt.figure(figsize=(10, 6))
+    plt.subplot()
+    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
+    plt.colorbar()
 
     
     df['xG'] = df.apply(lambda row: get_bin_value(row, Hdiv, x_edges, y_edges), axis = 1)
@@ -502,7 +502,7 @@ rand_df = get_dist_ang(rand_df)
 rand_df['xG'] = regressor.predict(rand_df[['Distance', 'Angle']]).clip(lower = 0)
 
 
-scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
+#scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
 
 
 

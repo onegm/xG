@@ -17,6 +17,7 @@ from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 from matplotlib  import cm
 
@@ -286,8 +287,8 @@ def angle(x, y):
         angle =1
         
     else:
-        angle1 = 1-abs(m.degrees(m.acos((y-44)/m.sqrt((120-x)**2 + (44-y)**2)))/180 - 0.5)
-        angle2 = 1-abs(m.degrees(m.acos((y-36)/m.sqrt((120-x)**2 + (36-y)**2)))/180 - 0.5)
+        angle1 = abs(m.degrees(m.acos(abs(y-44)/m.sqrt((x-120)**2 + (y-44)**2)))/90)
+        angle2 = abs(m.degrees(m.acos(abs(y-36)/m.sqrt((x-120)**2 + (y-36)**2)))/90)
         angle = max([angle1, angle2])
         
     return angle
@@ -298,7 +299,7 @@ def angle(x, y):
 def get_dist_ang(df):
     # Populate new columns 'Distance' and 'Angle'
     df['Distance'] = dist(df.X, df.Y) #df.apply(lambda row: dist(row['X'], row['Y']), axis = 1)
-    df['Angle'] = df.apply(lambda row: angle(row['X'], row['Y']), axis = 1) 
+    df['Angle'] = df.apply(lambda row: angle(row.X, row.Y), axis = 1) 
     
     return df
 
@@ -367,7 +368,8 @@ def colormap(prob, title = ''):
 
 
 
-def scatplot(x, y, title = '', color = 'b', colmap = False, maxv = None):
+def scatplot(x, y, title = '', color = 'b', colmap = False, maxv = None,
+             x_lim = 120, y_lim = 80):
     # scatter plot
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
@@ -378,8 +380,8 @@ def scatplot(x, y, title = '', color = 'b', colmap = False, maxv = None):
     else:
         ax1.scatter(x, y, c = color, marker = 'o', s = 5, alpha = 0.75)
         
-    plt.xlim(0, 120)
-    plt.ylim(0, 80)
+    plt.xlim(0, x_lim)
+    plt.ylim(0, y_lim)
     plt.grid()
     plt.title(title)
     plt.show()
@@ -466,30 +468,48 @@ filename = '/Users/onegm/Desktop/Arqam/Consolidation/Consolidated Shots Full 14.
 
 df = standarddf(filename)
 
-# Probability matrix of each bin for each shot type
+# Create binary column for shot outcome and big chance 
 df['isGoal'] = (df['Result'] == 'goal') * 1
-df = get_dist_ang(df)
+df['big'] = (df['Big Chance'] == 'big chance') * 1
 
+# Filter for open play shots
 dfshot = shotfilter('shot', df)
 
-dfshot['xG'] = calc_xG(dfshot)
+# Get distance and angle for each shot
+dfshot = get_dist_ang(dfshot)
+
+# Get inverse distance and angle 
+dfshot['inv_Distance'] = 1/dfshot.Distance
+dfshot['inv_Angle'] = 1/dfshot.Angle
 
 
-features = ['Distance', 'Angle']
-
-X = dfshot[features]
+# Features and target values
+X = dfshot[['Distance', 'Angle', 'big']]
 y = dfshot.isGoal
 
-
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 )
 
+# Train-test data for inverse distance and angle model
+#inv_X_train = X_train.copy()
+#inv_X_test = X_test.copy()
+#
+#inv_X_train.Distance = 1/inv_X_train.Distance
+#inv_X_test.Distance = 1/inv_X_test.Distance
+
+
+#inv_X_train.Angle[~ np.isfinite(inv_X_train.Angle)] = 30
+#inv_X_test.Angle[~ np.isfinite(inv_X_test.Angle)] = 30
 
 print('Fitting')
 
 
 # Logistic Regression
 log = LogisticRegression()
+#inv_log = LogisticRegression()
+
 log.fit(X_train, y_train)
+#inv_log.fit(inv_X_train, y_train)
 
 
 
@@ -497,28 +517,53 @@ print('Predicting')
 # Prediction
 log_prediction = log.predict_proba(X_test)[:, 1]
 exp_prediction = X_test.apply(lambda row: exp_xG(row), axis = 1)
+#inv_log_prediction = inv_log.predict_proba(inv_X_test)[:, 1]
 
 # RMSE
 log_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = log_prediction.clip(min = 0, max = 1)))
 exp_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = exp_prediction))
+#inv_log_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = inv_log_prediction.clip(min = 0, max = 1)))
+
 
 print('RMSE Values:')
 print('Logistic: ' + str(log_RMSE))
 print('Exponential: ' + str(exp_RMSE))
+#print('inv_Logistic: ' + str(inv_log_RMSE))
+
 
 
 # ROC
 log_fpr, log_tpr, log_thresh = roc_curve(y_test, log_prediction)
 exp_fpr, exp_tpr, exp_thresh = roc_curve(y_test, exp_prediction)
+#inv_log_fpr, inv_log_tpr, inv_log_thresh = roc_curve(y_test, inv_log_prediction)
+
+
+log_auc = roc_auc_score(y_test, log_prediction)
+exp_auc = roc_auc_score(y_test, exp_prediction)
+#inv_log_auc = roc_auc_score(y_test, inv_log_prediction)
+
+
+# Plot ROC curves
+fig = plt.figure()
+plt.scatter(log_fpr, log_tpr, c = 'b', s = 10, label = 'Logistic')
+plt.scatter(exp_fpr, exp_tpr, c = 'r', s = 10, label = 'Exponential')
+#plt.scatter(inv_log_fpr, inv_log_tpr, c = 'g', s = 10, label = 'inv_Logistic')
+
+plt.text(0.5, 0.2, 'Log AUC = %.3f\nExp AUC = %.3f'
+         % (log_auc, exp_auc) )
+plt.legend()
 
 
 
+
+
+'''
 # Random points on pitch
 xrange = np.linspace(0, 120, 5*10**5)
 yrange = np.linspace(0,  80, 5*10**5)
 
-rand_x = pd.Series(random.sample(set(xrange), 10**6), name = 'X')
-rand_y = pd.Series(random.sample(set(yrange), 10**6), name = 'Y')
+rand_x = pd.Series(random.sample(set(xrange), 5*10**5), name = 'X')
+rand_y = pd.Series(random.sample(set(yrange), 5*10**5), name = 'Y')
 
 rand_df = pd.concat([rand_x, rand_y], axis = 1)
 
@@ -538,5 +583,5 @@ scatplot(rand_df.X, rand_df.Y, title = 'Exponential', color = rand_df.exp_xG, co
 
 
 
-
+'''
 

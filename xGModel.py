@@ -12,13 +12,15 @@ import pandas as pd
 import random
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import roc_curve
 import matplotlib.pyplot as plt
 from matplotlib  import cm
 
-
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
 def lowerdf(df):
@@ -27,8 +29,6 @@ def lowerdf(df):
         if df[column].dtype == 'O': df[column] = df[column].str.lower()
     
     return df
-
-
 
 
 
@@ -367,13 +367,13 @@ def colormap(prob, title = ''):
 
 
 
-def scatplot(x, y, title = '', color = 'b', colmap = False):
+def scatplot(x, y, title = '', color = 'b', colmap = False, maxv = None):
     # scatter plot
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     
     if colmap:
-        sc = plt.scatter(x, y, c = color, marker = 'o', s = 5, cmap = 'jet')
+        sc = plt.scatter(x, y, c = color, marker = 'o', s = 5, cmap = 'jet', vmax = maxv)
         plt.colorbar(sc, orientation = 'vertical')
     else:
         ax1.scatter(x, y, c = color, marker = 'o', s = 5, alpha = 0.75)
@@ -410,12 +410,12 @@ def calc_xG(df):
     Hdiv = np.divide(Hgoal, H)
     Hdiv[~np.isfinite(Hdiv)] = 0
     
-    X, Y = np.meshgrid(x_edges, y_edges)
-    
-    fig = plt.figure(figsize=(10, 6))
-    plt.subplot()
-    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
-    plt.colorbar()
+#    X, Y = np.meshgrid(x_edges, y_edges)
+#    
+#    fig = plt.figure(figsize=(10, 6))
+#    plt.subplot()
+#    plt.pcolor(X, Y, Hdiv.T, cmap = 'jet')
+#    plt.colorbar()
 
     
     df['xG'] = df.apply(lambda row: get_bin_value(row, Hdiv, x_edges, y_edges), axis = 1)
@@ -444,6 +444,18 @@ def get_bin_value(row, Hdiv, x_edges, y_edges):
     
 
 
+def exp_xG(row):
+    # Get xG for each shot
+    # Different model for OP shot, header, freekick, penalty    
+
+    d = row.Distance
+    
+    a, b = [ 0.87532582,  0.12543476]
+
+    return a*m.exp(-b*d)
+
+
+
 
 
 ###############################################################################
@@ -464,32 +476,60 @@ dfshot['xG'] = calc_xG(dfshot)
 
 
 features = ['Distance', 'Angle']
-target = ['xG']
-
 
 X = dfshot[features]
-y = dfshot[target]
+y = dfshot.isGoal
 
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2 )
 
 
+print('Fitting')
 # Linear Regression
-regressor = LinearRegression()
-regressor.fit(X_train, y_train)
+linear = LinearRegression()
+linear.fit(X_train, y_train)
+
+
+# Logistic Regression
+logistic = LogisticRegression()
+logistic.fit(X_train, y_train)
 
 
 # Support Vector Regression
-#regressor = SVR(kernel = 'rbf')
-#regressor.fit(X_train, y_train)
+svr = SVR(kernel = 'rbf')
+svr.fit(X_train, y_train)
 
 
-y_prediction = regressor.predict(X_test)
-RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = y_prediction))
 
 
-xrange = np.linspace(0, 120, 10**6)
-yrange = np.linspace(0,  80, 10**6)
+print('Predicting')
+# Prediction
+linear_prediction = linear.predict(X_test)
+svr_prediction = svr.predict(X_test)
+logistic_prediction = logistic.predict_proba(X_test)[:, 1]
+exp_prediction = X_test.apply(lambda row: exp_xG(row), axis = 1)
+
+# RMSE
+linear_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = linear_prediction.clip(min = 0, max = 1)))
+svr_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = svr_prediction.clip(min = 0, max = 1)))
+logistic_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = logistic_prediction.clip(min = 0, max = 1)))
+exp_RMSE = m.sqrt(mean_squared_error(y_true = y_test, y_pred = exp_prediction))
+
+print('RMSE Values:')
+print('Linear: ' + str(linear_RMSE))
+print('SVR: ' + str(svr_RMSE))
+print('Logistic: ' + str(logistic_RMSE))
+print('Exponential: ' + str(exp_RMSE))
+
+
+# ROC
+fpr, tpr, thresh = roc_curve(y_test, logistic_prediction)
+
+
+
+# Random points on pitch
+xrange = np.linspace(0, 120, 5*10**5)
+yrange = np.linspace(0,  80, 5*10**5)
 
 rand_x = pd.Series(random.sample(set(xrange), 10**6), name = 'X')
 rand_y = pd.Series(random.sample(set(yrange), 10**6), name = 'Y')
@@ -499,10 +539,20 @@ rand_df = pd.concat([rand_x, rand_y], axis = 1)
 rand_df = get_dist_ang(rand_df)
 
 
-rand_df['xG'] = regressor.predict(rand_df[['Distance', 'Angle']]).clip(min = 0)
+print('Predicting on random points')
+# Predict on random points
+rand_df['linear_xG'] = linear.predict(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)
+rand_df['svr_xG'] = svr.predict(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)
+rand_df['logistic_xG'] = logistic.predict_proba(rand_df[['Distance', 'Angle']]).clip(min = 0, max = 1)[:, 1]
+rand_df['exp_xG'] = rand_df.apply(lambda row: exp_xG(row), axis = 1)
 
 
-scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
+print('Plotting')
+# Visualize models on pitch
+scatplot(rand_df.X, rand_df.Y, title = 'Linear', color = rand_df.linear_xG, colmap = True)
+scatplot(rand_df.X, rand_df.Y, title = 'SVR', color = rand_df.svr_xG, colmap = True)
+scatplot(rand_df.X, rand_df.Y, title = 'Logistic', color = rand_df.logistic_xG, colmap = True)
+scatplot(rand_df.X, rand_df.Y, title = 'Exponential', color = rand_df.exp_xG, colmap = True)
 
 
 

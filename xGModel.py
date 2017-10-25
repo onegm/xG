@@ -499,10 +499,10 @@ rand_df = pd.concat([rand_x, rand_y], axis = 1)
 rand_df = get_dist_ang(rand_df)
 
 
-rand_df['xG'] = regressor.predict(rand_df[['Distance', 'Angle']]).clip(lower = 0)
+rand_df['xG'] = regressor.predict(rand_df[['Distance', 'Angle']]).clip(min = 0)
 
 
-#scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
+scatplot(rand_df.X, rand_df.Y, title = 'Prediction', color = rand_df.xG, colmap = True)
 
 
 
